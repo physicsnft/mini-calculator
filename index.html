@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>🧮 Mini Calc</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Farcaster Frame Meta -->
+    <meta
+      name="fc:frame"
+      content='{
+        "version":"next",
+        "imageUrl":"https://yourdomain.com/calc-image.jpg",
+        "button": {
+          "title":"Calculator Mini App",
+          "action": {
+            "type":"launch_frame",
+            "url":"https://yourdomain.com"
+          }
+        }
+      }'
+    />
+
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .calculator {
+        position: relative;
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        width: 320px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      }
+      .display {
+        font-size: 2rem;
+        font-weight: 600;
+        text-align: right;
+        padding: 10px;
+        background: #f1f5f9;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        min-height: 50px;
+        overflow-x: auto;
+      }
+      .buttons {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+      button {
+        font-size: 1.2rem;
+        padding: 16px;
+        border: none;
+        border-radius: 10px;
+        background-color: #e2e8f0;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      button:hover {
+        background-color: #cbd5e1;
+      }
+      button.operator {
+        background-color: #a78bfa;
+        color: white;
+      }
+      button.equals {
+        background-color: #10b981;
+        color: white;
+        grid-column: span 1;
+      }
+      button.clear {
+        background-color: #ef4444;
+        color: white;
+        grid-column: span 1;
+      }
+      button.parenthesis {
+        background-color: #2596be;
+        color: white;
+        grid-column: span 1;
+      }
+      body.light {
+        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        color: #1f2937;
+      }
+
+      body.dark {
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        color: #f8fafc;
+      }
+
+      body.dark .calculator {
+        background: #1f2937;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      }
+
+      body.dark .display {
+        background: #334155;
+        color: #f8fafc;
+      }
+
+      body.dark button {
+        background-color: #334155;
+        color: #f8fafc;
+      }
+
+      body.dark button:hover {
+        background-color: #475569;
+      }
+
+      body.dark button.operator {
+        background-color: #8b5cf6;
+      }
+
+      body.dark button.equals {
+        background-color: #10b981;
+      }
+
+      body.dark button.clear {
+        background-color: #ef4444;
+      }
+
+      body.dark button.parenthesis {
+        background-color: #2596be;
+      }
+      
+      #darkModeToggle {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 1000;
+        font-size: 1.4rem;
+        padding: 6px 10px;
+        background: transparent;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      #darkModeToggle:hover {
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="calculator">
+		<!-- Dark mode toggle button -->
+		<button id="darkModeToggle">🌙</button>
+
+	  <div class="display">
+		<div id="expressionDisplay" style="font-size: 1rem; color: #6b7280; min-height: 1.2em;"></div>
+		<div id="resultDisplay" style="font-size: 2rem; font-weight: 600;">0</div>
+	  </div>
+      <div class="buttons">
+        <button class="clear">C</button>
+        <button class="parenthesis">(</button>
+        <button class="parenthesis">)</button>
+        <button class="operator" data-value="/">÷</button>
+
+        <button>7</button>
+        <button>8</button>
+        <button>9</button>
+        <button class="operator" data-value="*">×</button>
+
+        <button>4</button>
+        <button>5</button>
+        <button>6</button>
+        <button class="operator">-</button>
+
+        <button>1</button>
+        <button>2</button>
+        <button>3</button>
+        <button class="operator">+</button>
+		
+        <button class="toggle-sign">±</button>
+        <button>0</button>
+        <button>.</button>		
+        <button class="equals">=</button>
+      </div>
+    </div>
+
+    <script type="module">
+		import { sdk } from 'https://esm.sh/@farcaster/frame-sdk';
+		
+		const expressionDisplay = document.getElementById('expressionDisplay');
+		const resultDisplay = document.getElementById('resultDisplay');
+
+		const display = document.getElementById('display');
+		const buttons = document.querySelectorAll('.buttons button');
+
+		let result = '';
+		let current = '';
+		let resultShown = false;
+		
+		function getLastNumber(expr) {
+		  const match = expr.match(/(-?\d*\.?\d+)(?!.*\d)/);
+		  return match ? match[0] : '0';
+		}
+
+		function updateDisplay() {
+		  // Replace internal symbols with display-friendly ones
+		  const prettyExpression = current
+			.replace(/\*/g, '×')
+			.replace(/\//g, '÷');
+		  expressionDisplay.textContent = prettyExpression || '0';
+		  resultDisplay.textContent = resultShown ? result : getLastNumber(current);
+		}
+
+		function evaluateExpression(expr) {
+		  try {
+        const result = Function(`return (${expr})`)();
+        return isFinite(result) ? result.toString() : 'Error';
+		  } catch {
+        return 'Error';
+		  }
+		}
+		
+		const toggleButton = document.getElementById('darkModeToggle');
+
+		// Start in light mode
+		document.body.classList.add('light');
+
+		toggleButton.addEventListener('click', () => {
+		  const isDark = document.body.classList.toggle('dark');
+		  document.body.classList.toggle('light', !isDark);
+		  toggleButton.textContent = isDark ? '☀️' : '🌙';
+		});
+
+		buttons.forEach((btn) => {
+		  btn.addEventListener('click', () => {
+			  const val = btn.dataset.value || btn.textContent;
+
+			  if (btn.classList.contains('clear')) {
+				current = '';
+				resultShown = false;
+
+			  } else if (btn.classList.contains('equals')) {
+				result = evaluateExpression(current);
+				resultShown = true;
+
+			  } else if (btn.classList.contains('toggle-sign')) {
+          // Toggle the sign of the last number
+          const match = current.match(/(-?\d*\.?\d+)(?!.*\d)/);
+          if (match) {
+            const num = match[0];
+            const toggled = num.startsWith('-') ? num.slice(1) : '-' + num;
+            current = current.slice(0, -num.length) + toggled;
+          }
+				} else if (['+', '-', '*', '/'].includes(val)) {
+				  if (resultShown) {
+            // Continue from last result
+            current = result;
+            resultShown = false;
+				  }
+				  // Avoid duplicate operators
+				  if (/[\+\-\*\/]$/.test(current)) {
+            current = current.slice(0, -1);
+				  }
+				  current += val;
+			  } else {
+          if (resultShown) {
+            if (!['+', '-', '*', '/'].includes(val)) {
+              current = '';
+            }
+            resultShown = false;
+          }
+          current += val;
+			  }
+			  updateDisplay();
+			});
+		});
+
+		updateDisplay();
+		await sdk.actions.ready();
+    </script>
+  </body>
+</html>
