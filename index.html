@@ -281,7 +281,9 @@
 		});
 
 		updateDisplay();
-		await sdk.actions.ready();
+		(async () => {
+      await sdk.actions.ready();
+    })();
     </script>
   </body>
 </html>
